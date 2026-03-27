@@ -79,7 +79,7 @@ Dataset must contain a **label column**:
 ---
 
 ## 📷 Screenshots
-## 📷 Screenshots
+
 
 ### 🔹 Dashboard Interface
 
