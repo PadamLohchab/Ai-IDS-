@@ -82,17 +82,21 @@ Dataset must contain a **label column**:
 ## 📷 Screenshots
 
 ### 🔹 Dashboard Interface
-<img width="1718" height="998" alt="Screenshot_2026-03-27_12_59_13" src="https://github.com/user-attachments/assets/12712dd3-8bcb-4563-9489-fd4c71fecd63" />
+
+<img width="1718" height="998" alt="Dashboard" src="https://github.com/user-attachments/assets/b5955bc5-2944-4b2e-97c8-ca706b22a42c" />
 
 
 
 ### 🔹 Attack Detection Alert
-<img width="1718" height="998" alt="Screenshot_2026-03-27_12_56_33" src="https://github.com/user-attachments/assets/101c1ec6-d624-4527-b2c2-ccfdb5ab6781" />
+<img width="1718" height="998" alt="alert" src="https://github.com/user-attachments/assets/33d8699a-0360-4d9b-97c2-d6130b68c99e" />
+
 
 
 
 ### 🔹 Active Scan Results
-<img width="1718" height="998" alt="Screenshot_2026-03-27_12_56_08" src="https://github.com/user-attachments/assets/e47ec585-67c0-41c5-ba61-e296e44e6141" />
+<img width="1718" height="998" alt="scan" src="https://github.com/user-attachments/assets/431a49d1-8e28-4d19-97bb-9e368b9ccbd9" />
+
+
 
 
 
