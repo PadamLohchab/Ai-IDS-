@@ -1,0 +1,1 @@
+{"time": "2025-08-17 06:22:34", "level": "HIGH", "summary": "Risky service telnet on 192.168.169.128:23", "details": {"Host": "192.168.169.128", "Hostname": "", "State": "up", "Port": 23, "Protocol": "tcp", "Service": "telnet", "Product": "Linux telnetd", "Version": "", "OS_Guess": "Linux 2.6.9 - 2.6.33", "Risk": 90, "Intel": "Insecure \u2014 plaintext"}}

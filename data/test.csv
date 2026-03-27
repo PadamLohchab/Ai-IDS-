@@ -1,0 +1,5 @@
+src_ip,dst_ip,protocol,packet_size,label
+192.168.1.2,192.168.1.10,TCP,60,benign
+192.168.1.3,192.168.1.11,UDP,120,attack
+192.168.1.4,192.168.1.12,TCP,80,benign
+192.168.1.5,192.168.1.13,ICMP,200,attack

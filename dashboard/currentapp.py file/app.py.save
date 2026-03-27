@@ -1,0 +1,235 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+from datetime import datetime
+import altair as alt
+import networkx as nx
+import matplotlib.pyplot as plt
+import time
+import os
+
+# Get the folder where this script is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Build the full path to the model
+model_path = os.path.join(BASE_DIR, "../models/model.joblib")
+
+# Load the model
+model = joblib.load(model_path)
+# Optional: Real network capture
+try:
+    from scapy.all import sniff, IP, TCP, UDP, ICMP
+except ImportError:
+    st.warning("Scapy not installed. Real-time network monitoring disabled.")
+
+# Load your trained model
+model = joblib.load("../models/model.joblib")  # adjust path if needed
+
+# Session state for persistent storage
+if 'df' not in st.session_state:
+    st.session_state.df = pd.DataFrame(columns=[
+        "time","src_ip","dest_ip","duration","bytes_in","bytes_out",
+        "packets","protocol","result","probability","attack_type"
+    ])
+if 'alerts' not in st.session_state:
+    st.session_state.alerts = []
+
+# ------------------- PAGE CONFIG -------------------
+st.set_page_config(page_title="Futuristic AI-IDS", layout="wide", initial_sidebar_state="expanded")
+st.title("🚀 Futuristic AI-IDS Dashboard")
+st.markdown("""
+<style>
+body {background-color:#0E1117; color:#FFFFFF;}
+.stButton>button {background-color:#1f77b4; color:white;}
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------- SIDEBAR -------------------
+st.sidebar.title("Controls")
+mode = st.sidebar.radio("Mode", ["Live Traffic", "CSV Upload", "Manual Entry", "Analytics", "Alert History"])
+email_alert = st.sidebar.checkbox("Enable Email Alerts")
+sms_alert = st.sidebar.checkbox("Enable SMS Alerts")
+st.sidebar.markdown("---")
+
+# ------------------- HELPER FUNCTIONS -------------------
+def classify_packet(packet):
+    """Predict attack and return type, probability, result."""
+    # Features required by your model
+    features = pd.DataFrame([{
+        "duration": packet.get("duration", 0),
+        "bytes_in": packet.get("bytes_in", 0),
+        "bytes_out": packet.get("bytes_out", 0),
+        "packets": packet.get("packets", 1),
+        "protocol": packet.get("protocol", "TCP")
+    }])
+    prob = model.predict_proba(features)[0][1]
+    result = int(prob > 0.5)
+    
+    # Simple attack type example based on heuristic
+    attack_type = None
+    if result == 1:
+        if features['bytes_in'].iloc[0] > 1000:
+            attack_type = "DoS"
+        elif features['packets'].iloc[0] > 40:
+            attack_type = "Port Scan"
+        else:
+            attack_type = "Unknown Attack"
+    
+    return result, round(prob,2), attack_type
+
+def send_alert(packet_info):
+    """Trigger alert and log it"""
+    st.session_state.alerts.append(packet_info)
+    # Optional: implement email/SMS notifications here
+    if email_alert:
+        # send_email(packet_info)
+        pass
+    if sms_alert:
+        # send_sms(packet_info)
+        pass
+
+# ------------------- LIVE TRAFFIC MODE -------------------
+if mode == "Live Traffic":
+    st.subheader("📡 Real-Time Network Traffic Monitoring")
+    
+    interface = st.text_input("Network Interface (e.g., eth0 or wlan0)", value="lo")
+    start = st.button("Start Monitoring")
+    stop = st.button("Stop Monitoring")
+    placeholder = st.empty()
+    
+    running = st.session_state.get("running", False)
+    
+    if start:
+        st.session_state.running = True
+        running = True
+    if stop:
+        st.session_state.running = False
+        running = False
+    
+    if running:
+        st.info("Monitoring started... Press Stop to end.")
+        
+        def packet_callback(pkt):
+            # Extract features
+            pkt_info = {
+                "time": datetime.now(),
+                "src_ip": pkt[IP].src if IP in pkt else "N/A",
+                "dest_ip": pkt[IP].dst if IP in pkt else "N/A",
+                "duration": np.random.rand(),  # placeholder
+                "bytes_in": len(pkt),
+                "bytes_out": 0,
+                "packets": 1,
+                "protocol": pkt.proto if IP in pkt else "TCP"
+            }
+            result, prob, attack_type = classify_packet(pkt_info)
+            pkt_info.update({"result": result, "probability": prob, "attack_type": attack_type})
+            st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([pkt_info])], ignore_index=True)
+            
+            if result == 1:
+                send_alert(pkt_info)
+                st.warning(f"⚠️ Attack Detected from {pkt_info['src_ip']} -> {pkt_info['dest_ip']} ({attack_type}) Prob: {prob}")
+            
+            placeholder.dataframe(st.session_state.df.tail(10))
+        
+        # Start sniffing in background
+        try:
+            sniff(iface=interface, prn=packet_callback, store=False)
+        except Exception as e:
+            st.error(f"Cannot sniff on {interface}: {e}")
+
+# ------------------- CSV UPLOAD -------------------
+elif mode == "CSV Upload":
+    st.subheader("📂 Upload CSV for Analysis")
+    uploaded_file = st.file_uploader("Choose CSV", type=["csv"])
+    if uploaded_file:
+        df_csv = pd.read_csv(uploaded_file)
+        df_csv["result"], df_csv["probability"], df_csv["attack_type"] = zip(*df_csv.apply(classify_packet, axis=1))
+        st.session_state.df = pd.concat([st.session_state.df, df_csv], ignore_index=True)
+        st.dataframe(df_csv)
+        
+        # Alerts
+        for _, row in df_csv.iterrows():
+            if row.result == 1:
+                send_alert(row)
+        if any(df_csv["result"]==1):
+            st.warning("⚠️ Attack(s) Detected in CSV!")
+        else:
+            st.success("✅ No Attacks Detected.")
+        
+        st.download_button("Download Report", st.session_state.df.to_csv(index=False), "AI_IDS_Report.csv")
+
+# ------------------- MANUAL ENTRY -------------------
+elif mode == "Manual Entry":
+    st.subheader("✍️ Manual Packet Input")
+    with st.form("manual_form"):
+        src_ip = st.text_input("Source IP")
+        dest_ip = st.text_input("Destination IP")
+        duration = st.number_input("Duration", min_value=0.0, step=0.01)
+        bytes_in = st.number_input("Bytes In", min_value=0)
+        bytes_out = st.number_input("Bytes Out", min_value=0)
+        packets = st.number_input("Packets", min_value=1)
+        protocol = st.selectbox("Protocol", ["TCP","UDP","ICMP"])
+        submitted = st.form_submit_button("Add Packet")
+    
+    if submitted:
+        pkt_info = {
+            "time": datetime.now(),
+            "src_ip": src_ip,
+            "dest_ip": dest_ip,
+            "duration": duration,
+            "bytes_in": bytes_in,
+            "bytes_out": bytes_out,
+            "packets": packets,
+            "protocol": protocol
+        }
+        pkt_info["result"], pkt_info["probability"], pkt_info["attack_type"] = classify_packet(pkt_info)
+        st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([pkt_info])], ignore_index=True)
+        st.dataframe(pkt_info)
+        if pkt_info["result"] == 1:
+            send_alert(pkt_info)
+            st.warning(f"⚠️ Attack Detected! Type: {pkt_info['attack_type']} Prob: {pkt_info['probability']}")
+        else:
+            st.success("✅ Normal Packet Added.")
+
+# ------------------- ALERT HISTORY -------------------
+elif mode == "Alert History":
+    st.subheader("📜 Alert History")
+    if st.session_state.alerts:
+        alert_df = pd.DataFrame(st.session_state.alerts)
+        st.dataframe(alert_df)
+        st.download_button("Download Alerts", alert_df.to_csv(index=False), "Alert_History.csv")
+    else:
+        st.info("No alerts yet.")
+
+# ------------------- ANALYTICS -------------------
+elif mode == "Analytics":
+    st.subheader("📊 Traffic Analytics & Trends")
+    df_analytics = st.session_state.df.copy()
+    
+    if df_analytics.empty:
+        st.info("No data yet. Add packets or upload CSV first.")
+    else:
+        # Timeline chart
+        timeline = alt.Chart(df_analytics).mark_line(point=True).encode(
+            x='time:T',
+            y='result:Q',
+            color='result:N',
+            tooltip=['time','src_ip','dest_ip','attack_type','probability']
+        )
+        st.altair_chart(timeline, use_container_width=True)
+        
+        # Top attack sources
+        top_src = df_analytics[df_analytics['result']==1]['src_ip'].value_counts().reset_index()
+        top_src.columns = ['src_ip','count']
+        st.bar_chart(top_src.set_index('src_ip'))
+        
+        # Network Graph
+        st.subheader("🌐 Network Visualization")
+        G = nx.from_pandas_edgelist(df_analytics, 'src_ip', 'dest_ip', edge_attr=True, create_using=nx.DiGraph())
+        plt.figure(figsize=(8,6))
+        nx.draw_networkx(G, node_color='cyan', edge_color='red', with_labels=True, node_size=800, arrowsize=20)
+        st.pyplot(plt)
+        
+        # Download full analytics report
+        st.download_button("Download Full Analytics Report", df_analytics.to_csv(index=False), "Full_Analytics_Report.csv")
