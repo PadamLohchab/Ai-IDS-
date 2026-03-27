@@ -101,8 +101,8 @@ PROTOCOL_MAP = {
 
 # ------------------- MODEL LOADING -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(BASE_DIR, "../models/model.joblib")
-model = joblib.load(model_path)
+model_path = os.path.join(BASE_DIR, "/models/model.joblib")
+model = joblib.load("/home/kali/Downloads/ai-ids/models/model.joblib")
 
 # ------------------- SESSION STATE -------------------
 if "df" not in st.session_state:
@@ -116,8 +116,8 @@ if "running" not in st.session_state:
     st.session_state.running = False
 
 # ------------------- PAGE CONFIG -------------------
-st.set_page_config(page_title="Futuristic AI-IDS", layout="wide")
-st.title("🚀 Futuristic AI-IDS Dashboard")
+st.set_page_config(page_title="AI-IDS", layout="wide")
+st.title("🚀 AI-IDS Dashboard")
 
 # ------------------- SIDEBAR -------------------
 st.sidebar.title("Controls")
@@ -420,4 +420,3 @@ if st.sidebar.button("💾 Save Selected Packets"):
         st.sidebar.success(f"Saved {len(st.session_state.selected_rows)} packets to {save_path}")
     else:
         st.sidebar.warning("No rows selected to save.")
-
